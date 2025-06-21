@@ -39,6 +39,7 @@ jobs:
 
       - name: Debug pem
         run: |
+          echo "$SSH_KEY"
           file key.pem
           head -n 1 key.pem
 
