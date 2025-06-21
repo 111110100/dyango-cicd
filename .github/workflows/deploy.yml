@@ -25,11 +25,11 @@ jobs:
           if [[ "${{ github.ref }}" == "refs/heads/staging" || "${{ github.event.inputs.environment }}" == "staging" ]]; then
             echo "ENVIRONMENT=staging" >> $GITHUB_ENV
             echo "SSH_KEY=${{ secrets.STAGING_SSH_KEY }}" >> $GITHUB_ENV
-            echo "HOST=staging.example.com" >> $GITHUB_ENV
+            echo "HOST=staging.111110100.com" >> $GITHUB_ENV
           else
             echo "ENVIRONMENT=production" >> $GITHUB_ENV
             echo "SSH_KEY=${{ secrets.PRODUCTION_SSH_KEY }}" >> $GITHUB_ENV
-            echo "HOST=example.com" >> $GITHUB_ENV
+            echo "HOST=production.111110100.com" >> $GITHUB_ENV
           fi
 
       - name: Setup SSH
