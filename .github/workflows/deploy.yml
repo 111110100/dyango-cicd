@@ -36,17 +36,10 @@ jobs:
           if [[ "$ENVIRONMENT" == "staging" ]]; then
             echo "${{ secrets.STAGING_SSH_KEY }}" > key.pem
           else
-            echo "${{ secrets.PRODUCTION_SSH_KEY }}"
             echo "${{ secrets.PRODUCTION_SSH_KEY }}" > key.pem
           fi
           chmod 600 key.pem
           ssh-keyscan -H $HOST >> ~/.ssh/known_hosts
-
-      - name: Debug pem
-        run: |
-          echo "$SSH_KEY"
-          file key.pem
-          head -n 1 key.pem
 
       - name: Deploy
         run: |
