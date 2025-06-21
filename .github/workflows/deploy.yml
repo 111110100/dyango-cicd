@@ -36,3 +36,16 @@ jobs:
           chmod 600 key.pem
           mkdir -p ~/.ssh
           ssh-keyscan -H $HOST >> ~/.ssh/known_hosts
+
+      - name: Deploy
+        run: |
+          rsync -avz --exclude 'venv' --exclude '.git' -e "ssh -i key.pem" ./ ubuntu@$HOST:/var/www/brandaids
+
+          ssh -i key.pem ubuntu@$HOST << EOF
+            cd /var/www/brandaids
+            source venv/bin/activate
+            pip install -r requirements.txt
+            python manage.py migrate --settings=brandaids.settings.$ENVIRONMENT
+            python manage.py collectstatic --noinput --settings=brandaids.settings.$ENVIRONMENT
+            sudo systemctl restart gunicorn_brandaids
+          EOF
