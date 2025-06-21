@@ -32,10 +32,7 @@ jobs:
 
       - name: Setup SSH
         run: |
-          if [[ "$ENVIRONMENT" == "staging" ]]; then
-            echo "${{ secrets.STAGING_SSH_KEY }}" > key.pem
-          else
-            echo "${{ secrets.PRODUCTION_SSH_KEY }}" > key.pem
-          fi
+          echo "$SSH_KEY" > key.pem
           chmod 600 key.pem
+          mkdir -p ~/.ssh
           ssh-keyscan -H $HOST >> ~/.ssh/known_hosts
