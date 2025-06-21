@@ -46,7 +46,7 @@ jobs:
         with:
           host: ${{ env.DEPLOY_HOST }}
           username: ubuntu
-          key: key.pem
+          key_path: key.pem
           script: |
             cd /var/www/brandaids
             git pull origin ${{ github.ref_name }}
