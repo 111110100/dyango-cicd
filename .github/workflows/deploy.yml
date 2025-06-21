@@ -24,29 +24,18 @@ jobs:
         run: |
           if [[ "${{ github.ref }}" == "refs/heads/staging" || "${{ github.event.inputs.environment }}" == "staging" ]]; then
             echo "ENVIRONMENT=staging" >> $GITHUB_ENV
-            echo "SSH_KEY=${{ secrets.STAGING_SSH_KEY }}" >> $GITHUB_ENV
             echo "HOST=staging.111110100.com" >> $GITHUB_ENV
           else
             echo "ENVIRONMENT=production" >> $GITHUB_ENV
-            echo "SSH_KEY=${{ secrets.PRODUCTION_SSH_KEY }}" >> $GITHUB_ENV
             echo "HOST=production.111110100.com" >> $GITHUB_ENV
           fi
 
       - name: Setup SSH
         run: |
-          echo "$SSH_KEY" > key.pem
+          if [[ "$ENVIRONMENT" == "staging" ]]; then
+            echo "${{ secrets.STAGING_SSH_KEY }}" > key.pem
+          else
+            echo "${{ secrets.PRODUCTION_SSH_KEY }}" > key.pem
+          fi
           chmod 600 key.pem
           ssh-keyscan -H $HOST >> ~/.ssh/known_hosts
-
-      - name: Deploy
-        run: |
-          rsync -avz --exclude 'venv' --exclude '.git' -e "ssh -i key.pem" ./ ubuntu@$HOST:/var/www/brandaids
-
-          ssh -i key.pem ubuntu@$HOST << EOF
-            cd /var/www/brandaids
-            source venv/bin/activate
-            pip install -r requirements.txt
-            python manage.py migrate --settings=brandaids.settings.$ENVIRONMENT
-            python manage.py collectstatic --noinput --settings=brandaids.settings.$ENVIRONMENT
-            sudo systemctl restart gunicorn_brandaids
-          EOF
