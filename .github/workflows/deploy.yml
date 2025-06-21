@@ -25,17 +25,11 @@ jobs:
           if [[ "${{ github.ref }}" == "refs/heads/staging" || "${{ github.event.inputs.environment }}" == "staging" ]]; then
             echo "ENVIRONMENT=staging" >> $GITHUB_ENV
             echo "DEPLOY_HOST=${{ secrets.STAGING_SERVER_HOST }}" >> $GITHUB_ENV
-            #echo "${{ secrets.STAGING_SSH_KEY }}" > key.pem
-            cat << 'EOF' > key.pem
-          ${{ secrets.STAGING_SSH_KEY }}
-          EOF
+            echo "${{ secrets.STAGING_SSH_KEY }}" > key.pem
           else
             echo "ENVIRONMENT=production" >> $GITHUB_ENV
             echo "DEPLOY_HOST=${{ secrets.PRODUCTION_SERVER_HOST }}" >> $GITHUB_ENV
-            #echo "${{ secrets.PRODUCTION_SSH_KEY }}" > key.pem
-            cat << 'EOF' > key.pem
-          ${{ secrets.STAGING_SSH_KEY }}
-          EOF
+            echo "${{ secrets.PRODUCTION_SSH_KEY }}" > key.pem
           fi
           chmod 600 key.pem
 
