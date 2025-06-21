@@ -33,6 +33,14 @@ jobs:
           fi
           chmod 600 key.pem
 
+      - name: Debug SSH Key File
+        run: |
+          echo "First line of key.pem:"
+          head -n 1 key.pem
+          echo "Last line of key.pem:"
+          tail -n 1 key.pem
+          file key.pem
+
       - name: Deploy to ${{ env.ENVIRONMENT }}
         uses: appleboy/ssh-action@master
         with:
