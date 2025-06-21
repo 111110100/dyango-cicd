@@ -1,0 +1,52 @@
+name: Deploy Django App
+
+on:
+  push:
+    branches:
+      - staging
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'production'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set variables
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/staging" || "${{ github.event.inputs.environment }}" == "staging" ]]; then
+            echo "ENVIRONMENT=staging" >> $GITHUB_ENV
+            echo "SSH_KEY=${{ secrets.STAGING_SSH_KEY }}" >> $GITHUB_ENV
+            echo "HOST=staging.example.com" >> $GITHUB_ENV
+          else
+            echo "ENVIRONMENT=production" >> $GITHUB_ENV
+            echo "SSH_KEY=${{ secrets.PRODUCTION_SSH_KEY }}" >> $GITHUB_ENV
+            echo "HOST=example.com" >> $GITHUB_ENV
+          fi
+
+      - name: Setup SSH
+        run: |
+          echo "$SSH_KEY" > key.pem
+          chmod 600 key.pem
+          ssh-keyscan -H $HOST >> ~/.ssh/known_hosts
+
+      - name: Deploy
+        run: |
+          rsync -avz --exclude 'venv' --exclude '.git' -e "ssh -i key.pem" ./ ubuntu@$HOST:/var/www/brandaids
+
+          ssh -i key.pem ubuntu@$HOST << EOF
+            cd /var/www/brandaids
+            source venv/bin/activate
+            pip install -r requirements.txt
+            python manage.py migrate --settings=brandaids.settings.$ENVIRONMENT
+            python manage.py collectstatic --noinput --settings=brandaids.settings.$ENVIRONMENT
+            sudo systemctl restart gunicorn_brandaids
+          EOF
