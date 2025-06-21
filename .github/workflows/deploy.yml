@@ -17,39 +17,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set variables
+      - name: Set environment variables and write key
         run: |
           if [[ "${{ github.ref }}" == "refs/heads/staging" || "${{ github.event.inputs.environment }}" == "staging" ]]; then
             echo "ENVIRONMENT=staging" >> $GITHUB_ENV
-            echo "HOST=staging.111110100.com" >> $GITHUB_ENV
-          else
-            echo "ENVIRONMENT=production" >> $GITHUB_ENV
-            echo "HOST=production.111110100.com" >> $GITHUB_ENV
-          fi
-
-      - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          if [[ "$ENVIRONMENT" == "staging" ]]; then
+            echo "DEPLOY_HOST=${{ secrets.STAGING_SERVER_HOST }}" >> $GITHUB_ENV
             echo "${{ secrets.STAGING_SSH_KEY }}" > key.pem
           else
+            echo "ENVIRONMENT=production" >> $GITHUB_ENV
+            echo "DEPLOY_HOST=${{ secrets.PRODUCTION_SERVER_HOST }}" >> $GITHUB_ENV
             echo "${{ secrets.PRODUCTION_SSH_KEY }}" > key.pem
           fi
           chmod 600 key.pem
-          ssh-keyscan -H $HOST >> ~/.ssh/known_hosts
 
-      - name: Deploy
-        run: |
-          rsync -avz --exclude 'venv' --exclude '.git' -e "ssh -i key.pem" ./ ubuntu@$HOST:/var/www/brandaids
-
-          ssh -i key.pem ubuntu@$HOST << EOF
+      - name: Deploy to ${{ env.ENVIRONMENT }}
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ env.DEPLOY_HOST }}
+          username: ubuntu
+          key: key.pem
+          script: |
             cd /var/www/brandaids
+            git pull origin ${{ github.ref_name }}
             source venv/bin/activate
             pip install -r requirements.txt
-            python manage.py migrate --settings=brandaids.settings.$ENVIRONMENT
-            python manage.py collectstatic --noinput --settings=brandaids.settings.$ENVIRONMENT
+            python manage.py migrate --settings=brandaids.settings.${{ env.ENVIRONMENT }}
+            python manage.py collectstatic --noinput --settings=brandaids.settings.${{ env.ENVIRONMENT }}
             sudo systemctl restart gunicorn_brandaids
-          EOF
