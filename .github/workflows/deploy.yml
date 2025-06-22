@@ -22,7 +22,12 @@ jobs:
 
       - name: Set environment variables and write key
         run: |
-          if [[ "${{ github.ref }}" == "refs/heads/staging" || "${{ github.event.inputs.environment }}" == "staging" ]]; then
+          rm -f key.pem
+          if [[ "$GITHUB_REF" == "refs/heads/staging" ]]; then
+            echo "ENVIRONMENT=staging" >> $GITHUB_ENV
+            echo "DEPLOY_HOST=${{ secrets.STAGING_SERVER_HOST }}" >> $GITHUB_ENV
+            echo "${{ secrets.STAGING_SSH_KEY }}" > key.pem
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.environment }}" == "staging" ]]; then
             echo "ENVIRONMENT=staging" >> $GITHUB_ENV
             echo "DEPLOY_HOST=${{ secrets.STAGING_SERVER_HOST }}" >> $GITHUB_ENV
             echo "${{ secrets.STAGING_SSH_KEY }}" > key.pem
