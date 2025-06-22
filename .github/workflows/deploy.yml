@@ -54,7 +54,7 @@ jobs:
             git push origin -f production-rollback
           fi
 
-      - name: Deploy to ${ env.ENVIRONMENT }
+      - name: Deploy to ${{ env.ENVIRONMENT }}
         uses: appleboy/ssh-action@master
         with:
           host: ${{ env.DEPLOY_HOST }}
@@ -62,9 +62,9 @@ jobs:
           key_path: key.pem
           script: |
             cd /var/www/brandaids
-            git pull origin ${ github.ref_name }
+            git pull origin ${{ github.ref_name }}
             source venv/bin/activate
             pip install -r requirements.txt
-            python manage.py migrate --settings=brandaids.settings.${ env.ENVIRONMENT }
-            python manage.py collectstatic --noinput --settings=brandaids.settings.${ env.ENVIRONMENT }
+            python manage.py migrate --settings=brandaids.settings.${{ env.ENVIRONMENT }}
+            python manage.py collectstatic --noinput --settings=brandaids.settings.${{ env.ENVIRONMENT }}
             sudo systemctl restart gunicorn_braindaids
