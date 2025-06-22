@@ -45,6 +45,8 @@ jobs:
           chmod 600 key.pem
 
       - name: Tag current commit
+        permissions:
+          contents: write
         run: |
           if [[ "${{ env.ENVIRONMENT }}" == "staging" ]]; then
             git tag -f staging-rollback
