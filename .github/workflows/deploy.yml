@@ -13,60 +13,58 @@ on:
         default: 'production'
 
 jobs:
-  deploy-staging:
-    if: github.ref == 'refs/heads/staging' || github.event.inputs.environment == 'staging'
+  deploy:
     runs-on: ubuntu-latest
-    name: Deploy to Staging
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Write SSH Key
+      - name: Set environment variables and write key
         run: |
-          echo "${{ secrets.STAGING_SSH_KEY }}" > key.pem
+          rm -f key.pem
+          if [[ "$GITHUB_REF" == "refs/heads/staging" ]]; then
+            echo "ENVIRONMENT=staging" >> $GITHUB_ENV
+            echo "DEPLOY_HOST=${{ secrets.STAGING_SERVER_HOST }}" >> $GITHUB_ENV
+            echo "${{ secrets.STAGING_SSH_KEY }}" > key.pem
+          elif [[ "$GITHUB_REF" == "refs/heads/main" ]]; then
+            echo "ENVIRONMENT=production" >> $GITHUB_ENV
+            echo "DEPLOY_HOST=${{ secrets.PRODUCTION_SERVER_HOST }}" >> $GITHUB_ENV
+            echo "${{ secrets.PRODUCTION_SSH_KEY }}" > key.pem
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.environment }}" == "staging" ]]; then
+            echo "ENVIRONMENT=staging" >> $GITHUB_ENV
+            echo "DEPLOY_HOST=${{ secrets.STAGING_SERVER_HOST }}" >> $GITHUB_ENV
+            echo "${{ secrets.STAGING_SSH_KEY }}" > key.pem
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.environment }}" == "production" ]]; then
+            echo "ENVIRONMENT=production" >> $GITHUB_ENV
+            echo "DEPLOY_HOST=${{ secrets.PRODUCTION_SERVER_HOST }}" >> $GITHUB_ENV
+            echo "${{ secrets.PRODUCTION_SSH_KEY }}" > key.pem
+          else
+            echo "Unknown environment"; exit 1
+          fi
           chmod 600 key.pem
 
-      - name: Deploy to staging
+      - name: Tag current commit
+        run: |
+          if [[ "${{ env.ENVIRONMENT }}" == "staging" ]]; then
+            git tag -f staging-rollback
+            git push origin -f staging-rollback
+          elif [[ "${{ env.ENVIRONMENT }}" == "production" ]]; then
+            git tag -f production-rollback
+            git push origin -f production-rollback
+          fi
+
+      - name: Deploy to ${ env.ENVIRONMENT }
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.STAGING_SERVER_HOST }}
+          host: ${{ env.DEPLOY_HOST }}
           username: ubuntu
           key_path: key.pem
           script: |
             cd /var/www/brandaids
-            git pull origin staging
+            git pull origin ${ github.ref_name }
             source venv/bin/activate
             pip install -r requirements.txt
-            python manage.py migrate --settings=brandaids.settings.staging
-            python manage.py collectstatic --noinput --settings=brandaids.settings.staging
-            sudo systemctl restart gunicorn_brandaids
-
-  deploy-production:
-    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'production'
-    runs-on: ubuntu-latest
-    name: Deploy to Production
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Write SSH Key
-        run: |
-          echo "${{ secrets.PRODUCTION_SSH_KEY }}" > key.pem
-          chmod 600 key.pem
-
-      - name: Deploy to production
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.PRODUCTION_SERVER_HOST }}
-          username: ubuntu
-          key_path: key.pem
-          script: |
-            cd /var/www/brandaids
-            git pull origin main
-            source venv/bin/activate
-            pip install -r requirements.txt
-            python manage.py migrate --settings=brandaids.settings.production
-            python manage.py collectstatic --noinput --settings=brandaids.settings.production
-            sudo systemctl restart gunicorn_brandaids
+            python manage.py migrate --settings=brandaids.settings.${ env.ENVIRONMENT }
+            python manage.py collectstatic --noinput --settings=brandaids.settings.${ env.ENVIRONMENT }
+            sudo systemctl restart gunicorn_braindaids
