@@ -67,4 +67,4 @@ jobs:
             pip install -r requirements.txt
             python manage.py migrate --settings=brandaids.settings.${{ env.ENVIRONMENT }}
             python manage.py collectstatic --noinput --settings=brandaids.settings.${{ env.ENVIRONMENT }}
-            sudo systemctl restart gunicorn_braindaids
+            sudo systemctl restart gunicorn_brandaids
