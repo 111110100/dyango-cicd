@@ -23,34 +23,51 @@ jobs:
       - name: Set environment variables and write key
         run: |
           rm -f key.pem
-          # If push to staging
           if [[ "$GITHUB_REF" == "refs/heads/staging" ]]; then
             echo "ENVIRONMENT=staging" >> $GITHUB_ENV
+
+            if [[ -z "${{ secrets.STAGING_SERVER_HOST }}" ]]; then
+              echo "Missing STAGING_SERVER_HOST"
+              exit 1
+            fi
             echo "DEPLOY_HOST=${{ secrets.STAGING_SERVER_HOST }}" >> $GITHUB_ENV
             printf "%s" "${{ secrets.STAGING_SSH_KEY }}" > key.pem
 
-          # If push to main
           elif [[ "$GITHUB_REF" == "refs/heads/main" ]]; then
             echo "ENVIRONMENT=production" >> $GITHUB_ENV
+
+            if [[ -z "${{ secrets.PRODUCTION_SERVER_HOST }}" ]]; then
+              echo "Missing PRODUCTION_SERVER_HOST"
+              exit 1
+            fi
             echo "DEPLOY_HOST=${{ secrets.PRODUCTION_SERVER_HOST }}" >> $GITHUB_ENV
             printf "%s" "${{ secrets.PRODUCTION_SSH_KEY }}" > key.pem
 
-          # Manual trigger for staging
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.environment }}" == "staging" ]]; then
             echo "ENVIRONMENT=staging" >> $GITHUB_ENV
+
+            if [[ -z "${{ secrets.STAGING_SERVER_HOST }}" ]]; then
+              echo "Missing STAGING_SERVER_HOST"
+              exit 1
+            fi
             echo "DEPLOY_HOST=${{ secrets.STAGING_SERVER_HOST }}" >> $GITHUB_ENV
             printf "%s" "${{ secrets.STAGING_SSH_KEY }}" > key.pem
 
-          # Manual trigger for production
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.environment }}" == "production" ]]; then
             echo "ENVIRONMENT=production" >> $GITHUB_ENV
+
+            if [[ -z "${{ secrets.PRODUCTION_SERVER_HOST }}" ]]; then
+              echo "Missing PRODUCTION_SERVER_HOST"
+              exit 1
+            fi
             echo "DEPLOY_HOST=${{ secrets.PRODUCTION_SERVER_HOST }}" >> $GITHUB_ENV
             printf "%s" "${{ secrets.PRODUCTION_SSH_KEY }}" > key.pem
 
           else
-            echo \"Error: Environment not properly set.\"
+            echo "Error: Environment not properly set."
             exit 1
           fi
+
           chmod 600 key.pem
 
       - name: Debug SSH Key File
