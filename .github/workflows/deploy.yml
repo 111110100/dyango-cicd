@@ -13,82 +13,60 @@ on:
         default: 'production'
 
 jobs:
-  deploy:
+  deploy-staging:
+    if: github.ref == 'refs/heads/staging' || github.event.inputs.environment == 'staging'
     runs-on: ubuntu-latest
+    name: Deploy to Staging
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set environment variables and write key
+      - name: Write SSH Key
         run: |
-          rm -f key.pem
-          if [[ "$GITHUB_REF" == "refs/heads/staging" ]]; then
-            echo "ENVIRONMENT=staging" >> $GITHUB_ENV
-
-            if [[ -z "${{ secrets.STAGING_SERVER_HOST }}" ]]; then
-              echo "Missing STAGING_SERVER_HOST"
-              exit 1
-            fi
-            echo "DEPLOY_HOST=${{ secrets.STAGING_SERVER_HOST }}" >> $GITHUB_ENV
-            printf "%s" "${{ secrets.STAGING_SSH_KEY }}" > key.pem
-
-          elif [[ "$GITHUB_REF" == "refs/heads/main" ]]; then
-            echo "ENVIRONMENT=production" >> $GITHUB_ENV
-
-            if [[ -z "${{ secrets.PRODUCTION_SERVER_HOST }}" ]]; then
-              echo "Missing PRODUCTION_SERVER_HOST"
-              exit 1
-            fi
-            echo "DEPLOY_HOST=${{ secrets.PRODUCTION_SERVER_HOST }}" >> $GITHUB_ENV
-            printf "%s" "${{ secrets.PRODUCTION_SSH_KEY }}" > key.pem
-
-          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.environment }}" == "staging" ]]; then
-            echo "ENVIRONMENT=staging" >> $GITHUB_ENV
-
-            if [[ -z "${{ secrets.STAGING_SERVER_HOST }}" ]]; then
-              echo "Missing STAGING_SERVER_HOST"
-              exit 1
-            fi
-            echo "DEPLOY_HOST=${{ secrets.STAGING_SERVER_HOST }}" >> $GITHUB_ENV
-            printf "%s" "${{ secrets.STAGING_SSH_KEY }}" > key.pem
-
-          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.environment }}" == "production" ]]; then
-            echo "ENVIRONMENT=production" >> $GITHUB_ENV
-
-            if [[ -z "${{ secrets.PRODUCTION_SERVER_HOST }}" ]]; then
-              echo "Missing PRODUCTION_SERVER_HOST"
-              exit 1
-            fi
-            echo "DEPLOY_HOST=${{ secrets.PRODUCTION_SERVER_HOST }}" >> $GITHUB_ENV
-            printf "%s" "${{ secrets.PRODUCTION_SSH_KEY }}" > key.pem
-
-          else
-            echo "Error: Environment not properly set."
-            exit 1
-          fi
-
+          echo "${{ secrets.STAGING_SSH_KEY }}" > key.pem
           chmod 600 key.pem
 
-      - name: Debug SSH Key File
-        run: |
-          echo "First line of key.pem:"
-          head -n 1 key.pem
-          echo "Last line of key.pem:"
-          tail -n 1 key.pem
-          file key.pem
-
-      - name: Deploy to ${{ env.ENVIRONMENT }}
+      - name: Deploy to staging
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ env.DEPLOY_HOST }}
+          host: ${{ secrets.STAGING_SERVER_HOST }}
           username: ubuntu
           key_path: key.pem
           script: |
             cd /var/www/brandaids
-            git pull origin ${{ github.ref_name }}
+            git pull origin staging
             source venv/bin/activate
             pip install -r requirements.txt
-            python manage.py migrate --settings=brandaids.settings.${{ env.ENVIRONMENT }}
-            python manage.py collectstatic --noinput --settings=brandaids.settings.${{ env.ENVIRONMENT }}
+            python manage.py migrate --settings=brandaids.settings.staging
+            python manage.py collectstatic --noinput --settings=brandaids.settings.staging
+            sudo systemctl restart gunicorn_brandaids
+
+  deploy-production:
+    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'production'
+    runs-on: ubuntu-latest
+    name: Deploy to Production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Write SSH Key
+        run: |
+          echo "${{ secrets.PRODUCTION_SSH_KEY }}" > key.pem
+          chmod 600 key.pem
+
+      - name: Deploy to production
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.PRODUCTION_SERVER_HOST }}
+          username: ubuntu
+          key_path: key.pem
+          script: |
+            cd /var/www/brandaids
+            git pull origin main
+            source venv/bin/activate
+            pip install -r requirements.txt
+            python manage.py migrate --settings=brandaids.settings.production
+            python manage.py collectstatic --noinput --settings=brandaids.settings.production
             sudo systemctl restart gunicorn_brandaids
