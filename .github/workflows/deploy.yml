@@ -12,6 +12,10 @@ on:
         required: true
         default: 'production'
 
+permissions:
+  contents: write
+  actions: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
